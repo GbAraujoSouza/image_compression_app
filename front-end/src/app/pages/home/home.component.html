@@ -102,5 +102,38 @@
     </div>
     }
   </div>
+  @if(compressedImageUrl) {
+  <button (click)="openModal()" class="primary-btn">Mostrar Estatísticas SVD</button>
+  } }
+
+  <!-- Modal de Estatísticas SVD -->
+  @if(showModal) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <button class="close-btn" (click)="closeModal()">&times;</button>
+
+      <h2>Análise da Compressão (SVD)</h2>
+
+      <!-- Heatmap -->
+      @if(heatmapUrl) {
+      <div class="modal-section">
+        <h3>Mapa de Erro (Inferno colormap)</h3>
+        <img [src]="heatmapUrl" class="heatmap-img" />
+      </div>
+      }
+
+      <!-- Gráfico 1 -->
+      <div class="modal-section">
+        <h3>Valores Singulares (S)</h3>
+        <canvas id="singularChart"></canvas>
+      </div>
+
+      <!-- Gráfico 2 -->
+      <div class="modal-section">
+        <h3>Energia Acumulada</h3>
+        <canvas id="energyChart"></canvas>
+      </div>
+    </div>
+  </div>
   }
 </div>

@@ -62,4 +62,18 @@ export class HomeService {
       }
     );
   }
+
+  errorMap(original: File, compressed: Blob) {
+    const form = new FormData();
+    form.append('file_original', original);
+    form.append('file_compressed', compressed);
+
+    return this.http.post(`${this.API}/error-map`, form, { responseType: 'blob' });
+  }
+
+  svdStats(file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post(`${this.API}/svd-stats`, form);
+  }
 }

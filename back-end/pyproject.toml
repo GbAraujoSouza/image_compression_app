@@ -12,6 +12,7 @@ uvicorn = "^0.38.0"
 numpy = "^2.3.5"
 pillow = "^12.0.0"
 python-multipart = "^0.0.20"
+matplotlib = "^3.10.8"
 
 
 [build-system]

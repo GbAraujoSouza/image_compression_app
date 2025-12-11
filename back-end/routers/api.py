@@ -9,6 +9,7 @@ from data_processing.image_utils import (
     compress_full_image,
     compress_image_with_region,
     compress_image_with_region_global,
+    compute_error_map,
     load_img_into_numpy,
     numpy_to_bytes,
 )
@@ -111,3 +112,37 @@ async def compress_region_global(
 
     out_bytes = numpy_to_bytes(out_np)
     return Response(content=out_bytes, media_type="image/png")
+
+
+@router.post("/error-map")
+async def error_map(
+    file_original: UploadFile = File(...), file_compressed: UploadFile = File(...)
+):
+    orig = load_img_into_numpy(file_original)
+    comp = load_img_into_numpy(file_compressed)
+
+    heat = compute_error_map(orig, comp)
+    out_bytes = numpy_to_bytes(heat)
+
+    return Response(content=out_bytes, media_type="image/png")
+
+
+@router.post("/svd-stats")
+async def svd_stats(file: UploadFile = File(...)):
+    img = load_img_into_numpy(file)
+    # Mostrar estatísticas do canal Red
+    R = img[:, :, 0].astype(float)
+
+    _, S, _ = np.linalg.svd(R, full_matrices=False)
+
+    total_energy = np.sum(S)
+    cumulative = np.cumsum(S) / total_energy
+
+    stats = {
+        "singular_values": S.tolist(),
+        "cumulative_energy": cumulative.tolist(),
+        "total_energy": float(total_energy),
+        "rank": len(S),
+    }
+
+    return stats

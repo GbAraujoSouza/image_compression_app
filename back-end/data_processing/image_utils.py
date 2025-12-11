@@ -2,6 +2,7 @@ import numpy as np
 import io
 from PIL import Image
 from fastapi import UploadFile
+import matplotlib.cm as cm
 
 
 def load_img_into_numpy(file: UploadFile) -> np.ndarray:
@@ -121,3 +122,20 @@ def compress_image_with_region_global(img_np, k_region, k_base, region):
     b_out = mix_channel(B)
 
     return np.stack([r_out, g_out, b_out], axis=2)
+
+
+def compute_error_map(original_np: np.ndarray, compressed_np: np.ndarray):
+    # Erro absoluto médio entre canais
+    error = np.mean(
+        np.abs(original_np.astype(float) - compressed_np.astype(float)), axis=2
+    )
+
+    # Normalizar para [0, 1]
+    error_norm = error / np.max(error + 1e-8)
+
+    # Aplicar colormap Inferno
+    inferno = cm.get_cmap("inferno")
+    heatmap = inferno(error_norm)[:, :, :3]  # descartar alpha
+
+    heatmap_uint8 = (heatmap * 255).astype(np.uint8)
+    return heatmap_uint8

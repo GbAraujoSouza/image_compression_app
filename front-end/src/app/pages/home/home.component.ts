@@ -4,6 +4,30 @@ import { FormsModule } from '@angular/forms';
 import { debounceTime, Subject } from 'rxjs';
 import { CommonModule } from '@angular/common';
 
+import {
+  Chart,
+  LineController,
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+  Filler,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+// Registrar controladores necessários
+Chart.register(
+  LineController,
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+  Filler,
+  Tooltip,
+  Legend
+);
+
 @Component({
   selector: 'home-page',
   templateUrl: './home.component.html',
@@ -12,6 +36,10 @@ import { CommonModule } from '@angular/common';
 })
 export class HomeComponent {
   mode: 'tiles' | 'global' = 'global';
+
+  heatmapUrl: string | null = null;
+  private singularChart: any;
+  private energyChart: any;
 
   selecting: boolean = false;
   startX = 0;
@@ -30,6 +58,7 @@ export class HomeComponent {
   kRegion: number = 50; // K para a região selecionada (alta resolução)
 
   loading: boolean = false;
+  showModal: boolean = false;
 
   // debouncer
   private readonly kChange$ = new Subject<void>();
@@ -38,6 +67,85 @@ export class HomeComponent {
     this.kChange$.pipe(debounceTime(300)).subscribe(() => {
       this.compress();
     });
+  }
+
+  destroyCharts() {
+    if (this.singularChart) {
+      this.singularChart.destroy();
+      this.singularChart = null;
+    }
+    if (this.energyChart) {
+      this.energyChart.destroy();
+      this.energyChart = null;
+    }
+  }
+
+  openModal() {
+    if (!this.selectedFile || !this.compressedImageUrl) return;
+
+    this.showModal = true;
+    this.destroyCharts();
+
+    // Carregar heatmap
+    fetch(this.compressedImageUrl)
+      .then((res) => res.blob())
+      .then((compressedBlob) => {
+        this.homeService.errorMap(this.selectedFile!, compressedBlob).subscribe((blob) => {
+          this.heatmapUrl = URL.createObjectURL(blob);
+        });
+      });
+
+    this.homeService.svdStats(this.selectedFile).subscribe((stats: any) => {
+      const S = stats.singular_values;
+      const cumulativeEnergy = stats.cumulative_energy;
+
+      // Gráfico dos valores singulares
+      this.singularChart = new Chart('singularChart', {
+        type: 'line',
+        data: {
+          labels: S.map((_: any, i: any) => i + 1),
+          datasets: [
+            {
+              label: 'Valores Singulares',
+              data: S,
+              borderColor: '#60a5fa',
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+          },
+        },
+      });
+
+      // Gráfico da energia acumulada
+      this.energyChart = new Chart('energyChart', {
+        type: 'line',
+        data: {
+          labels: cumulativeEnergy.map((_: any, i: any) => i + 1),
+          datasets: [
+            {
+              label: 'Energia Acumulada',
+              data: cumulativeEnergy,
+              borderColor: '#a855f7',
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+          },
+        },
+      });
+    });
+  }
+  closeModal() {
+    this.showModal = false;
   }
 
   onFileSelected(event: any) {
