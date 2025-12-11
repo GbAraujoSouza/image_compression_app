@@ -1,0 +1,14 @@
+<h2>Compressor de Imagens (Protótipo)</h2>
+
+<input type="file" (change)="onFileSelected($event)" />
+
+<button (click)="sendToBackend()" [disabled]="!selectedFile">
+  Enviar imagem
+</button>
+
+@if (response) {
+  <div>
+    <h3>Resposta do servidor</h3>
+    <pre>{{ response | json }}</pre>
+  </div>
+}
