@@ -1,14 +1,106 @@
-<h2>Compressor de Imagens (Protótipo)</h2>
+<div class="home-container">
+  <h1>Compressão de Imagens com SVD</h1>
+  <h3>Ajuste o valor de <b>k</b> e visualize como a imagem é reconstruída</h3>
 
-<input type="file" (change)="onFileSelected($event)" />
-
-<button (click)="sendToBackend()" [disabled]="!selectedFile">
-  Enviar imagem
-</button>
-
-@if (response) {
-  <div>
-    <h3>Resposta do servidor</h3>
-    <pre>{{ response | json }}</pre>
+  <!-- Upload -->
+  <div class="upload-area">
+    <label class="upload-label">
+      Selecionar imagem
+      <input type="file" accept="image/*" (change)="onFileSelected($event)" />
+    </label>
   </div>
-}
+
+  <!-- Sliders de controle -->
+  @if(selectedFile) {
+  <div class="depth-control">
+    <label for="kbase">Resolução Base (k): {{ kBase }}</label>
+    <input id="kbase" type="range" min="1" [max]="maxK" [(ngModel)]="kBase" (input)="onKChange()" />
+
+    @if(selectionBox) {
+    <label for="kregion" style="margin-top: 1rem">Resolução da Região (k): {{ kRegion }}</label>
+    <input
+      id="kregion"
+      type="range"
+      min="1"
+      [max]="maxK"
+      [(ngModel)]="kRegion"
+      (input)="onKChange()"
+    />
+
+    <button (click)="clearSelection()" class="secondary-btn">Limpar Seleção</button>
+    }
+  </div>
+  }
+
+  <!-- Loading -->
+  @if(loading) {
+  <p class="loading">Processando...</p>
+  }
+
+  <div class="mode-selector">
+    <label>
+      <input type="radio" [(ngModel)]="mode" value="global" />
+      Modo Global (SVD)
+    </label>
+
+    <label>
+      <input type="radio" [(ngModel)]="mode" value="tiles" />
+      Modo Tiles (Local)
+    </label>
+  </div>
+
+  <!-- Resultados -->
+  @if(originalImageUrl) {
+  <div class="results-area">
+    <div class="image-card">
+      <h2>Original</h2>
+      <img [src]="originalImageUrl" alt="original" draggable="false" />
+    </div>
+
+    @if(compressedImageUrl) {
+    <div class="image-card">
+      <h2>
+        Comprimida @if(selectionBox) {<span style="font-size: 0.8rem; color: #94a3b8">
+          - Região selecionada</span
+        >}
+      </h2>
+
+      @if(loading && !compressedImageUrl) {
+      <div class="skeleton"></div>
+      } @else {
+      <div class="image-wrapper">
+        <img
+          #imgCompressed
+          id="imgCompressed"
+          [src]="compressedImageUrl"
+          alt="compressed"
+          draggable="false"
+          (mousedown)="startSelection($event)"
+          (mousemove)="updateSelection($event)"
+          (mouseup)="endSelection($event)"
+          (mouseleave)="cancelSelection()"
+        />
+
+        <!-- Overlay do retângulo -->
+        @if(selecting || selectionBox) {
+        <div
+          class="selection-rectangle"
+          [ngStyle]="{
+            left: selectionRect.x + 'px',
+            top: selectionRect.y + 'px',
+            width: selectionRect.w + 'px',
+            height: selectionRect.h + 'px'
+          }"
+        ></div>
+        }
+      </div>
+      } @if(loading && compressedImageUrl) {
+      <div style="margin-top: 8px; color: #94a3b8; font-size: 0.9rem">
+        Atualizando compressão...
+      </div>
+      }
+    </div>
+    }
+  </div>
+  }
+</div>

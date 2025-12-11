@@ -1,8 +1,14 @@
-from fastapi import APIRouter, Response
+import asyncio
+import json
+from PIL import Image
+from fastapi import APIRouter, Form, Query, Response
 from fastapi.responses import JSONResponse
 import numpy as np
 from data_processing.image_utils import (
     compress_channel_svd,
+    compress_full_image,
+    compress_image_with_region,
+    compress_image_with_region_global,
     load_img_into_numpy,
     numpy_to_bytes,
 )
@@ -30,17 +36,78 @@ async def upload_image(file: UploadFile = File(...)):
 
 
 @router.post("/compress")
-async def compress_image(k: int, file: UploadFile = File(...)):
+async def compress_image(
+    k: int = Query(50, ge=1),
+    file: UploadFile = File(...),
+):
 
     img_np = load_img_into_numpy(file)
 
-    R, G, B = img_np[:, :, 0], img_np[:, :, 1], img_np[:, :, 2]
+    loop = asyncio.get_event_loop()
+    img_np = await loop.run_in_executor(None, compress_full_image, img_np, k)
 
-    r_compressed = compress_channel_svd(R, k)
-    g_compressed = compress_channel_svd(G, k)
-    b_compressed = compress_channel_svd(B, k)
-
-    img_np = np.stack((r_compressed, g_compressed, b_compressed), axis=2)
     out_bytes = numpy_to_bytes(img_np)
 
+    return Response(content=out_bytes, media_type="image/png")
+
+
+@router.post("/max-k")
+async def get_max_k(file: UploadFile = File(...)):
+    img_np = load_img_into_numpy(file)
+
+    height, width = img_np.shape[:2]
+    k_max = min(height, width)
+
+    return JSONResponse(
+        {
+            "width": int(width),
+            "height": int(height),
+            "k_max": int(k_max),
+        }
+    )
+
+
+@router.post("/compress-region")
+async def compress_region(
+    k_region: int = Query(50, ge=1),
+    k_base: int = Query(10, ge=1),
+    file: UploadFile = File(...),
+    region: str = Form(...),
+):
+    region = json.loads(region)  # x1, y1, x2, y2
+
+    img = Image.open(file.file).convert("RGB")
+    img_np = np.array(img)
+
+    loop = asyncio.get_running_loop()
+
+    out_np = await loop.run_in_executor(
+        None, lambda: compress_image_with_region(img_np, k_region, k_base, region)
+    )
+
+    out_bytes = numpy_to_bytes(out_np)
+    return Response(content=out_bytes, media_type="image/png")
+
+
+@router.post("/compress-region-global")
+async def compress_region_global(
+    k_region: int = Query(50, ge=1),
+    k_base: int = Query(10, ge=1),
+    file: UploadFile = File(...),
+    region: str = Form(...),
+):
+    region = json.loads(region)
+
+    img = Image.open(file.file).convert("RGB")
+    img_np = np.array(img)
+
+    loop = asyncio.get_running_loop()
+
+    # SVD global + máscara rodando na worker thread
+    out_np = await loop.run_in_executor(
+        None,
+        lambda: compress_image_with_region_global(img_np, k_region, k_base, region),
+    )
+
+    out_bytes = numpy_to_bytes(out_np)
     return Response(content=out_bytes, media_type="image/png")
